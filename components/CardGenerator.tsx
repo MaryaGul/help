@@ -1,76 +1,41 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef } from "react"
+import { v4 as uuidv4 } from "uuid"
+import { toPng } from "html-to-image"
 import ImageUploader from "./ImageUploader"
 import TemplateSelector from "./TemplateSelector"
-import TextEditor from "./TextEditor"
+import CardEditor from "./CardEditor"
+import ElementEditor from "./ElementEditor"
 import BackgroundSelector from "./BackgroundSelector"
-import CardPreview from "./CardPreview"
-import { toPng } from "html-to-image"
-
-export type CardData = {
-  productImage: string | null
-  template: "900x900" | "900x1200"
-  title: string
-  description: string
-  price: string
-  backgroundColor: string
-  backgroundImage: string | null
-  textColor: string
-  elements: {
-    image: { x: number; y: number; width: number; height: number }
-    title: { x: number; y: number; fontSize: number }
-    description: { x: number; y: number; fontSize: number }
-    price: { x: number; y: number; fontSize: number }
-  }
-}
+import { TEMPLATES, EMPTY_TEMPLATE_900x900 } from "@/data/templates"
+import type { CardData, CardElement } from "@/types"
 
 export default function CardGenerator() {
   const [cardData, setCardData] = useState<CardData>({
-    productImage: null,
-    template: "900x900",
-    title: "Название товара",
-    description: "Описание товара",
-    price: "1999 ₽",
-    backgroundColor: "#ffffff",
-    backgroundImage: null,
-    textColor: "#000000",
-    elements: {
-      image: { x: 0, y: 0, width: 500, height: 500 },
-      title: { x: 0, y: 520, fontSize: 24 },
-      description: { x: 0, y: 560, fontSize: 16 },
-      price: { x: 0, y: 600, fontSize: 20 },
-    },
+    template: TEMPLATES[0],
+    backgroundColor: TEMPLATES[0].backgroundColor,
+    backgroundImage: TEMPLATES[0].backgroundImage || null,
+    elements: [...TEMPLATES[0].elements],
   })
 
+  const [selectedElement, setSelectedElement] = useState<CardElement | null>(null)
   const [dominantColors, setDominantColors] = useState<string[]>([])
   const cardRef = useRef<HTMLDivElement>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Update element positions based on template
-  useEffect(() => {
-    if (cardData.template === "900x900") {
-      setCardData((prev) => ({
-        ...prev,
-        elements: {
-          image: { x: 0, y: 0, width: 500, height: 500 },
-          title: { x: 0, y: 520, fontSize: 24 },
-          description: { x: 0, y: 560, fontSize: 16 },
-          price: { x: 0, y: 600, fontSize: 20 },
-        },
-      }))
-    } else {
-      setCardData((prev) => ({
-        ...prev,
-        elements: {
-          image: { x: 0, y: 0, width: 500, height: 700 },
-          title: { x: 0, y: 720, fontSize: 24 },
-          description: { x: 0, y: 760, fontSize: 16 },
-          price: { x: 0, y: 800, fontSize: 20 },
-        },
-      }))
-    }
-  }, [cardData.template])
+  const handleTemplateChange = (templateId: string) => {
+    const template = TEMPLATES.find((t) => t.id === templateId) || EMPTY_TEMPLATE_900x900
+
+    setCardData({
+      template,
+      backgroundColor: template.backgroundColor,
+      backgroundImage: template.backgroundImage || null,
+      elements: [...template.elements],
+    })
+
+    setSelectedElement(null)
+  }
 
   const handleImageUpload = async (imageUrl: string, removeBackground: boolean) => {
     setIsLoading(true)
@@ -96,10 +61,24 @@ export default function CardGenerator() {
       }
     }
 
+    // Add the image as a new element
+    const newImageElement: CardElement = {
+      id: uuidv4(),
+      type: "image",
+      src: processedImageUrl,
+      x: 50,
+      y: 50,
+      width: 300,
+      height: 300,
+    }
+
     setCardData((prev) => ({
       ...prev,
-      productImage: processedImageUrl,
+      elements: [...prev.elements, newImageElement],
     }))
+
+    // Select the new element
+    setSelectedElement(newImageElement)
 
     // Extract dominant colors
     try {
@@ -122,14 +101,6 @@ export default function CardGenerator() {
     setIsLoading(false)
   }
 
-  const handleTemplateChange = (template: "900x900" | "900x1200") => {
-    setCardData((prev) => ({ ...prev, template }))
-  }
-
-  const handleTextChange = (field: "title" | "description" | "price", value: string) => {
-    setCardData((prev) => ({ ...prev, [field]: value }))
-  }
-
   const handleBackgroundChange = (type: "color" | "image", value: string) => {
     if (type === "color") {
       setCardData((prev) => ({
@@ -146,35 +117,89 @@ export default function CardGenerator() {
     }
   }
 
-  const handleTextColorChange = (color: string) => {
-    setCardData((prev) => ({ ...prev, textColor: color }))
-  }
-
-  const handleElementMove = (element: "image" | "title" | "description" | "price", x: number, y: number) => {
+  const handleElementUpdate = (updatedElement: CardElement) => {
     setCardData((prev) => ({
       ...prev,
-      elements: {
-        ...prev.elements,
-        [element]: {
-          ...prev.elements[element],
-          x,
-          y,
-        },
-      },
+      elements: prev.elements.map((el) => (el.id === updatedElement.id ? updatedElement : el)),
+    }))
+    setSelectedElement(updatedElement)
+  }
+
+  const handleElementMove = (elementId: string, x: number, y: number) => {
+    setCardData((prev) => ({
+      ...prev,
+      elements: prev.elements.map((el) => (el.id === elementId ? { ...el, x, y } : el)),
     }))
   }
 
-  const handleFontSizeChange = (element: "title" | "description" | "price", size: number) => {
+  const handleElementSelect = (element: CardElement | null) => {
+    setSelectedElement(element)
+  }
+
+  const handleAddTextElement = () => {
+    const newTextElement: CardElement = {
+      id: uuidv4(),
+      type: "text",
+      content: "Новый текст",
+      x: 50,
+      y: 50,
+      fontSize: 24,
+      fontFamily: "Inter",
+      fontWeight: "normal",
+      fontStyle: "normal",
+      color: "#000000",
+      textAlign: "left",
+      width: 300,
+    }
+
     setCardData((prev) => ({
       ...prev,
-      elements: {
-        ...prev.elements,
-        [element]: {
-          ...prev.elements[element],
-          fontSize: size,
-        },
-      },
+      elements: [...prev.elements, newTextElement],
     }))
+
+    setSelectedElement(newTextElement)
+  }
+
+  const handleAddListElement = () => {
+    const newListElement: CardElement = {
+      id: uuidv4(),
+      type: "list",
+      items: [
+        {
+          id: uuidv4(),
+          content: "Пункт списка 1",
+          icon: "check",
+        },
+      ],
+      x: 50,
+      y: 50,
+      fontSize: 18,
+      fontFamily: "Inter",
+      fontWeight: "normal",
+      fontStyle: "normal",
+      color: "#000000",
+      iconColor: "#000000",
+      spacing: 40,
+      width: 300,
+    }
+
+    setCardData((prev) => ({
+      ...prev,
+      elements: [...prev.elements, newListElement],
+    }))
+
+    setSelectedElement(newListElement)
+  }
+
+  const handleDeleteElement = (elementId: string) => {
+    setCardData((prev) => ({
+      ...prev,
+      elements: prev.elements.filter((el) => el.id !== elementId),
+    }))
+
+    if (selectedElement && selectedElement.id === elementId) {
+      setSelectedElement(null)
+    }
   }
 
   const handleExport = async () => {
@@ -197,35 +222,52 @@ export default function CardGenerator() {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Left Panel - Controls */}
       <div className="bg-white p-6 rounded-lg shadow-md">
-        <ImageUploader onImageUpload={handleImageUpload} isLoading={isLoading} />
+        <TemplateSelector
+          templates={TEMPLATES}
+          selectedTemplateId={cardData.template.id}
+          onTemplateChange={handleTemplateChange}
+        />
 
         <div className="mt-6">
-          <TemplateSelector selectedTemplate={cardData.template} onTemplateChange={handleTemplateChange} />
+          <ImageUploader onImageUpload={handleImageUpload} isLoading={isLoading} />
         </div>
 
-        <div className="mt-6">
-          <TextEditor
-            title={cardData.title}
-            description={cardData.description}
-            price={cardData.price}
-            onTextChange={handleTextChange}
-            onFontSizeChange={handleFontSizeChange}
-            titleFontSize={cardData.elements.title.fontSize}
-            descriptionFontSize={cardData.elements.description.fontSize}
-            priceFontSize={cardData.elements.price.fontSize}
-          />
+        <div className="mt-6 space-y-2">
+          <h3 className="text-lg font-medium">Добавить элементы</h3>
+          <div className="flex space-x-2">
+            <button
+              onClick={handleAddTextElement}
+              className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+            >
+              Добавить текст
+            </button>
+            <button
+              onClick={handleAddListElement}
+              className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+            >
+              Добавить список
+            </button>
+          </div>
         </div>
+
+        {selectedElement && (
+          <div className="mt-6">
+            <ElementEditor element={selectedElement} onUpdate={handleElementUpdate} onDelete={handleDeleteElement} />
+          </div>
+        )}
       </div>
 
       {/* Center Panel - Preview */}
       <div className="bg-white p-6 rounded-lg shadow-md flex flex-col items-center">
-        <CardPreview cardData={cardData} onElementMove={handleElementMove} ref={cardRef} />
+        <CardEditor
+          cardData={cardData}
+          onElementMove={handleElementMove}
+          onElementSelect={handleElementSelect}
+          selectedElementId={selectedElement?.id}
+          ref={cardRef}
+        />
 
-        <button
-          onClick={handleExport}
-          disabled={!cardData.productImage}
-          className="mt-6 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-        >
+        <button onClick={handleExport} className="mt-6 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">
           Скачать PNG
         </button>
       </div>
@@ -235,10 +277,8 @@ export default function CardGenerator() {
         <BackgroundSelector
           backgroundColor={cardData.backgroundColor}
           backgroundImage={cardData.backgroundImage}
-          textColor={cardData.textColor}
           dominantColors={dominantColors}
           onBackgroundChange={handleBackgroundChange}
-          onTextColorChange={handleTextColorChange}
         />
       </div>
     </div>
