@@ -12,18 +12,17 @@ interface BackgroundSelectorProps {
   onBackgroundChange: (type: "color" | "image", value: string) => void
 }
 
-// Predefined backgrounds
+// Predefined backgrounds - using uploaded images and placeholders
 const PREDEFINED_BACKGROUNDS = [
-  "/backgrounds/gradient-purple.jpg",
-  "/backgrounds/gradient-blue.jpg",
-  "/backgrounds/gradient-green.jpg",
-  "/backgrounds/gradient-orange.jpg",
-  "/backgrounds/pattern-1.jpg",
-  "/backgrounds/pattern-2.jpg",
-  "/backgrounds/texture-1.jpg",
-  "/backgrounds/texture-2.jpg",
-  "/backgrounds/minimal-1.jpg",
-  "/backgrounds/minimal-2.jpg",
+  "/backgrounds/1.jpg",
+  "/backgrounds/2.jpg",
+  "/backgrounds/3.jpg",
+  "/placeholder.svg?height=300&width=300&text=Gradient+Purple",
+  "/placeholder.svg?height=300&width=300&text=Gradient+Blue",
+  "/placeholder.svg?height=300&width=300&text=Gradient+Green",
+  "/placeholder.svg?height=300&width=300&text=Gradient+Orange",
+  "/placeholder.svg?height=300&width=300&text=Pattern+1",
+  "/placeholder.svg?height=300&width=300&text=Pattern+2",
 ]
 
 export default function BackgroundSelector({
@@ -42,6 +41,7 @@ export default function BackgroundSelector({
     setIsGenerating(true)
 
     try {
+      // Используем реальный API для генерации фона
       const response = await fetch("/api/generate-background", {
         method: "POST",
         headers: {
@@ -50,7 +50,9 @@ export default function BackgroundSelector({
         body: JSON.stringify({ prompt: aiPrompt }),
       })
 
-      if (!response.ok) throw new Error("Failed to generate background")
+      if (!response.ok) {
+        throw new Error("Failed to generate background")
+      }
 
       const data = await response.json()
 
@@ -60,6 +62,11 @@ export default function BackgroundSelector({
       }
     } catch (error) {
       console.error("Error generating background:", error)
+
+      // Fallback to placeholder if API fails
+      const placeholderUrl = `/placeholder.svg?height=300&width=300&text=${encodeURIComponent(aiPrompt)}`
+      setGeneratedBackgrounds((prev) => [placeholderUrl, ...prev].slice(0, 5))
+      onBackgroundChange("image", placeholderUrl)
     } finally {
       setIsGenerating(false)
     }
@@ -162,7 +169,7 @@ export default function BackgroundSelector({
                 {isGenerating ? (
                   <>
                     <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                    Генерация...
+                    Ге��ерация...
                   </>
                 ) : (
                   <>
@@ -171,7 +178,9 @@ export default function BackgroundSelector({
                   </>
                 )}
               </button>
-              <p className="text-xs text-gray-500 mt-1">Лимит: 5 генераций в день (Replicate API)</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {process.env.REPLICATE_API_TOKEN ? "Используется Replicate API" : "Демо-режим: генерирует плейсхолдеры"}
+              </p>
             </div>
 
             {generatedBackgrounds.length > 0 && (

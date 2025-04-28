@@ -1,6 +1,7 @@
 export type FontWeight = "normal" | "bold" | "light" | "medium" | "semibold"
 export type FontStyle = "normal" | "italic"
 export type TextAlign = "left" | "center" | "right"
+export type ShapeType = "circle" | "rectangle" | "triangle" | "line"
 
 export type TextElement = {
   id: string
@@ -15,6 +16,7 @@ export type TextElement = {
   color: string
   textAlign: TextAlign
   width?: number
+  rotation?: number
 }
 
 export type ListElement = {
@@ -35,6 +37,7 @@ export type ListElement = {
   iconColor: string
   spacing: number
   width?: number
+  rotation?: number
 }
 
 export type ImageElement = {
@@ -45,6 +48,7 @@ export type ImageElement = {
   y: number
   width: number
   height: number
+  rotation?: number
 }
 
 export type IconElement = {
@@ -55,9 +59,25 @@ export type IconElement = {
   y: number
   size: number
   color: string
+  rotation?: number
 }
 
-export type CardElement = TextElement | ListElement | ImageElement | IconElement
+export type ShapeElement = {
+  id: string
+  type: "shape"
+  shapeType: ShapeType
+  x: number
+  y: number
+  width: number
+  height: number
+  color: string
+  borderWidth: number
+  borderColor: string
+  borderRadius: number
+  rotation?: number
+}
+
+export type CardElement = TextElement | ListElement | ImageElement | IconElement | ShapeElement
 
 export type Template = {
   id: string

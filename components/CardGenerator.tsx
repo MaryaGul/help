@@ -9,7 +9,22 @@ import CardEditor from "./CardEditor"
 import ElementEditor from "./ElementEditor"
 import BackgroundSelector from "./BackgroundSelector"
 import { TEMPLATES, EMPTY_TEMPLATE_900x900 } from "@/data/templates"
-import type { CardData, CardElement } from "@/types"
+import type { CardElement, ShapeType } from "@/types"
+
+export type CardData = {
+  template: {
+    id: string
+    name: string
+    width: number
+    height: number
+    backgroundColor: string
+    backgroundImage?: string
+    elements: CardElement[]
+  }
+  backgroundColor: string
+  backgroundImage: string | null
+  elements: CardElement[]
+}
 
 export default function CardGenerator() {
   const [cardData, setCardData] = useState<CardData>({
@@ -70,6 +85,7 @@ export default function CardGenerator() {
       y: 50,
       width: 300,
       height: 300,
+      rotation: 0, // Добавляем начальный угол поворота
     }
 
     setCardData((prev) => ({
@@ -132,6 +148,22 @@ export default function CardGenerator() {
     }))
   }
 
+  const handleElementResize = (elementId: string, width: number, height: number) => {
+    setCardData((prev) => ({
+      ...prev,
+      elements: prev.elements.map((el) =>
+        el.id === elementId && (el.type === "image" || el.type === "shape") ? { ...el, width, height } : el,
+      ),
+    }))
+  }
+
+  const handleElementRotate = (elementId: string, rotation: number) => {
+    setCardData((prev) => ({
+      ...prev,
+      elements: prev.elements.map((el) => (el.id === elementId ? { ...el, rotation } : el)),
+    }))
+  }
+
   const handleElementSelect = (element: CardElement | null) => {
     setSelectedElement(element)
   }
@@ -191,6 +223,30 @@ export default function CardGenerator() {
     setSelectedElement(newListElement)
   }
 
+  const handleAddShapeElement = (shapeType: ShapeType) => {
+    const newShapeElement: CardElement = {
+      id: uuidv4(),
+      type: "shape",
+      shapeType: shapeType,
+      x: 50,
+      y: 50,
+      width: shapeType === "line" ? 200 : 100,
+      height: shapeType === "line" ? 2 : 100,
+      color: "#3b82f6",
+      borderWidth: 0,
+      borderColor: "#000000",
+      borderRadius: shapeType === "circle" ? 50 : 0,
+      rotation: 0,
+    }
+
+    setCardData((prev) => ({
+      ...prev,
+      elements: [...prev.elements, newShapeElement],
+    }))
+
+    setSelectedElement(newShapeElement)
+  }
+
   const handleDeleteElement = (elementId: string) => {
     setCardData((prev) => ({
       ...prev,
@@ -220,7 +276,7 @@ export default function CardGenerator() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Left Panel - Controls */}
+      {/* Left Panel - Background & Image Upload */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <TemplateSelector
           templates={TEMPLATES}
@@ -232,9 +288,38 @@ export default function CardGenerator() {
           <ImageUploader onImageUpload={handleImageUpload} isLoading={isLoading} />
         </div>
 
-        <div className="mt-6 space-y-2">
+        <div className="mt-6">
+          <BackgroundSelector
+            backgroundColor={cardData.backgroundColor}
+            backgroundImage={cardData.backgroundImage}
+            dominantColors={dominantColors}
+            onBackgroundChange={handleBackgroundChange}
+          />
+        </div>
+      </div>
+
+      {/* Center Panel - Preview */}
+      <div className="bg-white p-6 rounded-lg shadow-md flex flex-col items-center">
+        <CardEditor
+          cardData={cardData}
+          onElementMove={handleElementMove}
+          onElementResize={handleElementResize}
+          onElementRotate={handleElementRotate}
+          onElementSelect={handleElementSelect}
+          selectedElementId={selectedElement?.id}
+          ref={cardRef}
+        />
+
+        <button onClick={handleExport} className="mt-6 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">
+          Скачать PNG
+        </button>
+      </div>
+
+      {/* Right Panel - Editing Functions */}
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <div className="space-y-2">
           <h3 className="text-lg font-medium">Добавить элементы</h3>
-          <div className="flex space-x-2">
+          <div className="grid grid-cols-2 gap-2 mb-4">
             <button
               onClick={handleAddTextElement}
               className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
@@ -248,6 +333,34 @@ export default function CardGenerator() {
               Добавить список
             </button>
           </div>
+
+          <h4 className="text-md font-medium mt-4">Фигуры</h4>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => handleAddShapeElement("rectangle")}
+              className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+            >
+              Прямоугольник
+            </button>
+            <button
+              onClick={() => handleAddShapeElement("circle")}
+              className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+            >
+              Круг
+            </button>
+            <button
+              onClick={() => handleAddShapeElement("triangle")}
+              className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+            >
+              Треугольник
+            </button>
+            <button
+              onClick={() => handleAddShapeElement("line")}
+              className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+            >
+              Линия
+            </button>
+          </div>
         </div>
 
         {selectedElement && (
@@ -255,31 +368,6 @@ export default function CardGenerator() {
             <ElementEditor element={selectedElement} onUpdate={handleElementUpdate} onDelete={handleDeleteElement} />
           </div>
         )}
-      </div>
-
-      {/* Center Panel - Preview */}
-      <div className="bg-white p-6 rounded-lg shadow-md flex flex-col items-center">
-        <CardEditor
-          cardData={cardData}
-          onElementMove={handleElementMove}
-          onElementSelect={handleElementSelect}
-          selectedElementId={selectedElement?.id}
-          ref={cardRef}
-        />
-
-        <button onClick={handleExport} className="mt-6 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">
-          Скачать PNG
-        </button>
-      </div>
-
-      {/* Right Panel - Background & Colors */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <BackgroundSelector
-          backgroundColor={cardData.backgroundColor}
-          backgroundImage={cardData.backgroundImage}
-          dominantColors={dominantColors}
-          onBackgroundChange={handleBackgroundChange}
-        />
       </div>
     </div>
   )

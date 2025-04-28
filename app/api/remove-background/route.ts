@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { v2 as cloudinary } from "cloudinary"
 
-// Configure Cloudinary
+// Настройка Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -16,13 +16,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Image URL is required" }, { status: 400 })
     }
 
-    // Upload the image to Cloudinary with background removal
+    // Загрузка изображения в Cloudinary с удалением фона
     const uploadResult = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload(
         imageUrl,
         {
           background_removal: "cloudinary_ai",
-          notification_url: "https://mysite.example.com/notify_endpoint",
         },
         (error, result) => {
           if (error) reject(error)

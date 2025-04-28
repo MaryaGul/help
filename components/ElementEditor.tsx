@@ -2,8 +2,17 @@
 
 import type React from "react"
 import { v4 as uuidv4 } from "uuid"
-import { Trash2, Plus, Minus } from "lucide-react"
-import type { CardElement, TextElement, ListElement, FontWeight, FontStyle, TextAlign } from "@/types"
+import { Trash2, Plus } from "lucide-react"
+import type {
+  CardElement,
+  TextElement,
+  ListElement,
+  FontWeight,
+  FontStyle,
+  TextAlign,
+  ShapeElement,
+  ShapeType,
+} from "@/types"
 
 interface ElementEditorProps {
   element: CardElement
@@ -22,6 +31,12 @@ const ICON_OPTIONS = [
   { value: "battery-charging", label: "Батарея" },
   { value: "wifi", label: "Wi-Fi" },
   { value: "check", label: "Галочка" },
+]
+const SHAPE_TYPES: { value: ShapeType; label: string }[] = [
+  { value: "rectangle", label: "Прямоугольник" },
+  { value: "circle", label: "Круг" },
+  { value: "triangle", label: "Треугольник" },
+  { value: "line", label: "Линия" },
 ]
 
 export default function ElementEditor({ element, onUpdate, onDelete }: ElementEditorProps) {
@@ -80,7 +95,7 @@ export default function ElementEditor({ element, onUpdate, onDelete }: ElementEd
   }
 
   const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (element.type === "text" || element.type === "list" || element.type === "icon") {
+    if (element.type === "text" || element.type === "list" || element.type === "icon" || element.type === "shape") {
       onUpdate({
         ...element,
         color: e.target.value,
@@ -152,11 +167,78 @@ export default function ElementEditor({ element, onUpdate, onDelete }: ElementEd
   }
 
   const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (element.type === "text" || element.type === "list") {
+    if (element.type === "text" || element.type === "list" || element.type === "shape") {
       onUpdate({
         ...element,
         width: Number(e.target.value),
       })
+    }
+  }
+
+  const handleHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (element.type === "shape") {
+      onUpdate({
+        ...element,
+        height: Number(e.target.value),
+      })
+    }
+  }
+
+  const handleBorderWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (element.type === "shape") {
+      onUpdate({
+        ...element,
+        borderWidth: Number(e.target.value),
+      })
+    }
+  }
+
+  const handleBorderColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (element.type === "shape") {
+      onUpdate({
+        ...element,
+        borderColor: e.target.value,
+      })
+    }
+  }
+
+  const handleBorderRadiusChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (element.type === "shape" && element.shapeType === "rectangle") {
+      onUpdate({
+        ...element,
+        borderRadius: Number(e.target.value),
+      })
+    }
+  }
+
+  const handleShapeTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (element.type === "shape") {
+      const newShapeType = e.target.value as ShapeType
+
+      // Adjust properties based on new shape type
+      const updatedElement: ShapeElement = {
+        ...element,
+        shapeType: newShapeType,
+      }
+
+      // Reset border radius for non-rectangle shapes
+      if (newShapeType !== "rectangle") {
+        updatedElement.borderRadius = 0
+      }
+
+      // Set circle to equal width/height
+      if (newShapeType === "circle") {
+        const size = Math.max(element.width, element.height)
+        updatedElement.width = size
+        updatedElement.height = size
+      }
+
+      // Set line to be thin
+      if (newShapeType === "line") {
+        updatedElement.height = 2
+      }
+
+      onUpdate(updatedElement)
     }
   }
 
@@ -307,13 +389,6 @@ export default function ElementEditor({ element, onUpdate, onDelete }: ElementEd
               onChange={(e) => handleListItemChange(item.id, e.target.value)}
               className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
-            <button
-              onClick={() => handleRemoveListItem(item.id)}
-              className="ml-2 p-2 text-gray-500 hover:text-red-500"
-              disabled={element.items.length <= 1}
-            >
-              <Minus size={16} />
-            </button>
           </div>
         ))}
         <button onClick={handleAddListItem} className="flex items-center text-blue-600 hover:text-blue-800 mt-2">
@@ -426,6 +501,101 @@ export default function ElementEditor({ element, onUpdate, onDelete }: ElementEd
     </div>
   )
 
+  const renderShapeEditor = (element: ShapeElement) => (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Тип фигуры</label>
+        <select
+          value={element.shapeType}
+          onChange={handleShapeTypeChange}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+        >
+          {SHAPE_TYPES.map((type) => (
+            <option key={type.value} value={type.value}>
+              {type.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Цвет заливки</label>
+          <input
+            type="color"
+            value={element.color}
+            onChange={handleColorChange}
+            className="w-full h-10 rounded-md cursor-pointer"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Цвет обводки</label>
+          <input
+            type="color"
+            value={element.borderColor}
+            onChange={handleBorderColorChange}
+            className="w-full h-10 rounded-md cursor-pointer"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Толщина обводки (px)</label>
+        <input
+          type="range"
+          min="0"
+          max="20"
+          value={element.borderWidth}
+          onChange={handleBorderWidthChange}
+          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+        />
+        <div className="text-sm text-gray-500 mt-1">{element.borderWidth}px</div>
+      </div>
+
+      {element.shapeType === "rectangle" && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Скругление углов (px)</label>
+          <input
+            type="range"
+            min="0"
+            max="50"
+            value={element.borderRadius}
+            onChange={handleBorderRadiusChange}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          />
+          <div className="text-sm text-gray-500 mt-1">{element.borderRadius}px</div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Ширина (px)</label>
+          <input
+            type="number"
+            min="10"
+            max="800"
+            value={element.width}
+            onChange={handleWidthChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Высота (px)</label>
+          <input
+            type="number"
+            min="10"
+            max="800"
+            value={element.height}
+            onChange={handleHeightChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="border-t pt-4 mt-4">
       <div className="flex items-center justify-between mb-4">
@@ -436,7 +606,9 @@ export default function ElementEditor({ element, onUpdate, onDelete }: ElementEd
               ? "Редактирование списка"
               : element.type === "image"
                 ? "Редактирование изображения"
-                : "Редактирование иконки"}
+                : element.type === "shape"
+                  ? "Редактирование фигуры"
+                  : "Редактирование иконки"}
         </h3>
         <button onClick={() => onDelete(element.id)} className="p-2 text-gray-500 hover:text-red-500">
           <Trash2 size={18} />
@@ -445,6 +617,7 @@ export default function ElementEditor({ element, onUpdate, onDelete }: ElementEd
 
       {element.type === "text" && renderTextEditor(element)}
       {element.type === "list" && renderListEditor(element)}
+      {element.type === "shape" && renderShapeEditor(element)}
     </div>
   )
 }
